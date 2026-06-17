@@ -1,0 +1,18 @@
+[project]
+name = "langgraph-agent-app"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "databricks-sdk",
+    "langchain-core",
+    "databricks-langchain",
+    "langgraph",
+    "unitycatalog-ai[databricks]",
+    "langchain-mcp-adapters",
+    "mcp>=1.0.0",
+]
+
+[tool.uv]
+package = false
