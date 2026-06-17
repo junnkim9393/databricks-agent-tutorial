@@ -3,12 +3,15 @@ import os
 import sys
 from contextlib import asynccontextmanager
 
+import mlflow
 import uvicorn
 from databricks.sdk import WorkspaceClient
 from fastapi import FastAPI, HTTPException
 from langchain_core.messages import HumanMessage
 from pydantic import BaseModel
 from agent import build_agent
+
+mlflow.langchain.autolog()
 
 logging.basicConfig(level=logging.INFO, stream=sys.stdout)
 logger = logging.getLogger(__name__)
@@ -26,6 +29,14 @@ async def lifespan(app: FastAPI):
     try:
         logger.info("Initializing agent...")
         wc = WorkspaceClient()
+        try:
+            mlflow.set_tracking_uri("databricks")
+            experiment_name = os.environ.get("MLFLOW_EXPERIMENT_NAME")
+            if experiment_name:
+                mlflow.set_experiment(experiment_name)
+            logger.info("MLflow tracking configured.")
+        except Exception as mlflow_err:
+            logger.warning(f"MLflow setup failed (tracking disabled): {mlflow_err}")
         tools = []
 
         if UC_FUNCTIONS:
@@ -89,6 +100,16 @@ async def invoke(request: QueryRequest):
             {"type": m.__class__.__name__, "content": m.content, "tool_calls": getattr(m, "tool_calls", [])}
             for m in result["messages"]
         ]
+
+        tool_calls = [tc for m in result["messages"] for tc in getattr(m, "tool_calls", [])]
+        with mlflow.start_run():
+            mlflow.log_metrics({
+                "tool_calls_per_request": len(tool_calls),
+                "llm_turns_per_request": sum(1 for m in result["messages"] if m.__class__.__name__ == "AIMessage"),
+            })
+            for tc in tool_calls:
+                mlflow.log_metric(f"tool_called_{tc['name']}", 1)
+
         return {"response": result["messages"][-1].content, "messages": messages}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

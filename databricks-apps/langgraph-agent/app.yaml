@@ -9,3 +9,5 @@ env:
     value: "main.default.get_weekly_weather_forecast"
   - name: MCP_SERVER_URL
     value: "https://fastmcp-server-8628124014979244.aws.databricksapps.com/sse"
+  - name: MLFLOW_EXPERIMENT_NAME
+    value: "/Users/your.email@company.com/langgraph-agent"
